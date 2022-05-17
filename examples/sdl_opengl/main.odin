@@ -5,8 +5,8 @@ import "core:log";
 import "core:strings";
 import "core:runtime";
 
-import sdl "shared:odin-sdl2";
-import gl  "shared:odin-gl";
+import sdl "vendor:sdl2";
+import gl  "vendor:OpenGL";
 
 import imgui "../..";
 import imgl  "../../impl/opengl";
@@ -24,38 +24,38 @@ main :: proc() {
     context.logger = log.create_console_logger(opt = logger_opts);
 
     log.info("Starting SDL Example...");
-    init_err := sdl.init(.Video);
-    //defer sdl.quit();
+    init_err := sdl.Init(sdl.INIT_VIDEO);
+    defer sdl.Quit();
     if init_err == 0 {
         log.info("Setting up the window...");
-        window := sdl.create_window("odin-imgui SDL+OpenGL example", 100, 100, 1280, 720, .Open_GL|.Mouse_Focus|.Shown|.Resizable);
+        window := sdl.CreateWindow("odin-imgui SDL+OpenGL example", 100, 100, 1280, 720, {.OPENGL, .MOUSE_FOCUS, .SHOWN, .RESIZABLE});
         if window == nil {
-            //log.debugf("Error during window creation: %s", sdl.get_error());
-            //sdl.quit();
+            log.debugf("Error during window creation: %s", sdl.GetError());
+            sdl.Quit();
             return;
         }
-        defer sdl.destroy_window(window);
+        defer sdl.DestroyWindow(window);
 
         log.info("Setting up the OpenGL...");
-        sdl.gl_set_attribute(.Context_Major_Version, DESIRED_GL_MAJOR_VERSION);
-        sdl.gl_set_attribute(.Context_Minor_Version, DESIRED_GL_MINOR_VERSION);
-        sdl.gl_set_attribute(.Context_Profile_Mask, i32(sdl.GL_Context_Profile.Core));
-        sdl.gl_set_attribute(.Doublebuffer, 1);
-        sdl.gl_set_attribute(.Depth_Size, 24);
-        sdl.gl_set_attribute(.Stencil_Size, 8);
-        gl_ctx := sdl.gl_create_context(window);
+        sdl.GL_SetAttribute(.CONTEXT_MAJOR_VERSION, DESIRED_GL_MAJOR_VERSION);
+        sdl.GL_SetAttribute(.CONTEXT_MINOR_VERSION, DESIRED_GL_MINOR_VERSION);
+        sdl.GL_SetAttribute(.CONTEXT_PROFILE_MASK, i32(sdl.GLprofile.CORE));
+        sdl.GL_SetAttribute(.DOUBLEBUFFER, 1);
+        sdl.GL_SetAttribute(.DEPTH_SIZE, 24);
+        sdl.GL_SetAttribute(.STENCIL_SIZE, 8);
+        gl_ctx := sdl.GL_CreateContext(window);
         if gl_ctx == nil {
-            log.debugf("Error during window creation: %s", sdl.get_error());
+            log.debugf("Error during window creation: %s", sdl.GetError());
             return;
         }
-        sdl.gl_make_current(window, gl_ctx);
-        defer sdl.gl_delete_context(gl_ctx);
-        if sdl.gl_set_swap_interval(1) != 0 {
-            log.debugf("Error during window creation: %s", sdl.get_error());
+        sdl.GL_MakeCurrent(window, gl_ctx);
+        defer sdl.GL_DeleteContext(gl_ctx);
+        if sdl.GL_SetSwapInterval(1) != 0 {
+            log.debugf("Error during window creation: %s", sdl.GetError());
             return;
         }
         gl.load_up_to(DESIRED_GL_MAJOR_VERSION, DESIRED_GL_MINOR_VERSION, 
-                      proc(p: rawptr, name: cstring) do (cast(^rawptr)p)^ = sdl.gl_get_proc_address(name); );
+                      proc(p: rawptr, name: cstring) do (cast(^rawptr)p)^ = sdl.GL_GetProcAddress(name); );
         gl.ClearColor(0.25, 0.25, 0.25, 1);
 
         imgui_state := init_imgui_state(window);
@@ -64,20 +64,20 @@ main :: proc() {
         show_demo_window := false;
         e := sdl.Event{};
         for running {
-            for sdl.poll_event(&e) != 0 {
+            for sdl.PollEvent(&e) != 0 {
                 imsdl.process_event(e, &imgui_state.sdl_state);
                 #partial switch e.type {
-                    case .Quit:
-//                        log.info("Got SDL_QUIT event!");
-//                        running = false;
+                    case .QUIT:
+                        log.info("Got SDL_QUIT event!");
+                        running = false;
 
-                    case .Key_Down:
-//                        if is_key_down(e, .Escape) {
-//                            qe := sdl.Event{};
-//                            qe.type = .Quit;
-//                            sdl.push_event(&qe);
+                    case .KEYDOWN:
+                        if is_key_down(e, .ESCAPE) {
+                            qe := sdl.Event{};
+                            qe.type = .QUIT;
+                            sdl.PushEvent(&qe);
                         }
-                        if is_key_down(e, .Tab) {
+                        if is_key_down(e, .TAB) {
                             io := imgui.get_io();
                             if io.want_capture_keyboard == false {
                                 show_demo_window = true;
@@ -104,12 +104,12 @@ main :: proc() {
             gl.Scissor(0, 0, i32(io.display_size.x), i32(io.display_size.y));
             gl.Clear(gl.COLOR_BUFFER_BIT);
             imgl.imgui_render(imgui.get_draw_data(), imgui_state.opengl_state);
-            sdl.gl_swap_window(window);
+            sdl.GL_SwapWindow(window);
         }
         log.info("Shutting down...");
         
     } else {
-        log.debugf("Error during SDL init: (%d)%s", init_err, sdl.get_error());
+        log.debugf("Error during SDL init: (%d)%s", init_err, sdl.GetError());
     }
 }
 
@@ -196,7 +196,7 @@ combo_test_window :: proc() {
 }
 
 is_key_down :: proc(e: sdl.Event, sc: sdl.Scancode) -> bool {
-    return e.key.type == .Key_Down && e.key.keysym.scancode == sc;
+    return e.key.type == .KEYDOWN && e.key.keysym.scancode == sc;
 }
 
 Imgui_State :: struct {
@@ -210,7 +210,7 @@ init_imgui_state :: proc(window: ^sdl.Window) -> Imgui_State {
     imgui.create_context();
     imgui.style_colors_dark();
 
-    imsdl.setup_state(&res.sdl_state);
+    imsdl.setup_state(&res.sdl_state, window);
     
     imgl.setup_state(&res.opengl_state);
 
