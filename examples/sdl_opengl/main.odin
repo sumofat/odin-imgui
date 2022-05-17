@@ -10,7 +10,7 @@ import gl  "vendor:OpenGL";
 
 import imgui "../..";
 import imgl  "../../impl/opengl";
-import imsdl "../../impl/sdl"
+import imsdl "../../impl/sdl";
 
 DESIRED_GL_MAJOR_VERSION :: 4;
 DESIRED_GL_MINOR_VERSION :: 5;
